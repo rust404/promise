@@ -1,0 +1,14 @@
+{
+  "name": "promise",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:rust404/promise.git",
+  "author": "rust404 <rust404@outlook.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "promises-aplus-tests": "^2.1.2"
+  },
+  "scripts": {
+    "test": "promises-aplus-tests adapter.js"
+  }
+}
