@@ -1,4 +1,4 @@
-const isFunction  = (value) => typeof value === 'function'
+const isFunction = (value) => typeof value === 'function'
 const isObject = (value) => !!(value && typeof value === 'object')
 const isThenable = (value) => (isObject(value) || isFunction(value)) && 'then' in value
 const isPromise = (value) => value instanceof Promise
@@ -7,6 +7,7 @@ const PENDING = 'pending'
 const FULFILLED = 'fulfilled'
 const REJECTED = 'rejected'
 
+// 处理then单个回调
 const handleCallback = (callback, state, result) => {
   const {onFulfilled, onRejected, resolve, reject} = callback
   // 父Promise的状态不会影响then promise的状态，只会决定then promise选择onFulfilled还是onRejected作为结果
@@ -17,19 +18,19 @@ const handleCallback = (callback, state, result) => {
       // 注意，如果onReject不存在，那么将穿透错误reject(result)
       isFunction(onRejected) ? resolve(onRejected(result)) : reject(result)
     }
-  } catch(err) {
+  } catch (err) {
     reject(err)
   }
 }
 
 const handleCallbacks = (callbacks, state, result) => {
   setTimeout(() => {
-    while(callbacks.length) handleCallback(callbacks.shift(), state, result)
+    while (callbacks.length) handleCallback(callbacks.shift(), state, result)
   }, 0)
 }
 
+// 处理Promise的状态转换
 const transition = (promise, state, result) => {
-  if (promise.state !== PENDING) return
   promise.state = state
   promise.result = result
   handleCallbacks(promise.callbacks, state, result)
@@ -50,9 +51,10 @@ const resolvePromise = (promise, result, onFulfilled, onRejected) => {
     try {
       const then = result.then
       if (isFunction(then)) {
+        // 将这个thenable对象转换成当前的Promise对象，然后走Promise对象的逻辑
         return new Promise(then.bind(result)).then(onFulfilled, onRejected)
       }
-    } catch(err) {
+    } catch (err) {
       return onRejected(err)
     }
   }
@@ -67,6 +69,18 @@ function Promise(executor) {
   const onFulfilled = (value) => transition(this, FULFILLED, value)
   const onRejected = (reason) => transition(this, REJECTED, reason)
 
+  // 处理同时resolve两个以上Promise的情况
+  // 所以不使用this.state === PENDING来判断
+  // p1 = new Promise((resolve) => {
+  //   setTimeout(() => resolve(1), 2000)
+  // })
+  // p2 = new Promise((resolve) => {
+  //   setTimeout(() => resolve(2), 1000)
+  // })
+  // new Promise((resolve) => {
+  //   resolve(p1)
+  //   resolve(p2)
+  // }).then(r => console.log(r))
   let pending = true
 
   const resolve = (value) => {
@@ -82,15 +96,15 @@ function Promise(executor) {
   }
   try {
     executor(resolve, reject)
-  } catch(err) {
+  } catch (err) {
     reject(err)
   }
 }
 
-Promise.prototype.then = function(onFulfilled, onRejected) {
+Promise.prototype.then = function (onFulfilled, onRejected) {
   // then需要返回Promise
   return new Promise((resolve, reject) => {
-    const callback = { onFulfilled, onRejected, resolve, reject}
+    const callback = {onFulfilled, onRejected, resolve, reject}
     // 注意由于使用箭头函数，所以this指向父Promise
     // 如果父Promise在PENDING，那么直接进回调队列
     // 如果父Promise不在PENDING，那么直接执行
